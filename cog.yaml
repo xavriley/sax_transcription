@@ -1,0 +1,33 @@
+# Configuration for Cog ⚙️
+# Reference: https://github.com/replicate/cog/blob/main/docs/yaml.md
+
+build:
+  gpu: true
+
+  system_packages:
+    - "ffmpeg"
+    - "libsndfile1-dev"
+    - "portaudio19-dev"
+    - "python3-pyaudio"
+    - "xsltproc"
+    - "openjdk-11-jre"
+
+  python_version: "3.10"
+
+  python_packages:
+     - "cython"
+     - "transkun"
+     - "tqdm==4.62.3"
+     - "demucs==3.0.6"
+     - "librosa"
+     - "madmom @ git+https://github.com/CPJKU/madmom#egg=madmom"
+    #  - "pyaudio"
+     - "BeatNet"
+     - "partitura"
+     - "verovio"
+
+  run:
+     - "pip install --global-option='build_ext' --global-option='-I/usr/local/include' --global-option='-L/usr/local/lib' pyaudio"
+
+predict: "predict.py:Predictor"
+image: "r8.im/xavriley/sax-to-midi"

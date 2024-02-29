@@ -1,0 +1,53 @@
+// reduced model for 4/4 measure
+
+// principle : every note symbol costs 1
+// grace notes allowed
+
+[penalty]
+
+[timesig 4 4]
+
+// bar level (whole)
+0 -> C0          9.54      // whole note tied to previous bar
+0 -> R           5.41      // whole rest
+0 -> E1          9.945      // whole note
+0 -> E2          19.85   // 1 g.n. + whole 
+0 -> U2(1, 1)    2.83   // div. in 2 halves (unbeamed)
+0 -> U3(1, 1, 1) 104.2     // triplet of halves (unbeamed)
+
+// half bar level (half)
+1 -> C0           6.064      // tied half
+1 -> R            4.43      // half rest
+1 -> E1           4.48      // half
+1 -> E2           19.85   // flam + half
+1 -> U2(2, 2)     1.98   // beats (quarters)
+//1 -> U3(2, 2, 2) 33      // triplet of quarters
+
+// beat level (quarter)
+2 -> C0           4.5     // tied quarter
+2 -> R            3.73     // quarter rest
+2 -> E1           3.11     // quarter
+2 -> E2           19.85  // g.n. + quarter
+2 -> T2(3, 3)     1.73   // 2 eights
+2 -> T3(3, 3, 3) 3.99     // triplet of eights    
+
+// sub-beat (eight)
+3 -> C0           2.6      // tied eight
+3 -> R            1.79      // eight rest
+3 -> E1           1.06      // eight
+3 -> E2           19.85   // 1 g.n. + eight
+3 -> T2(4, 4)     3.49    // 2 16th
+
+// sub-sub-beat (16th)
+4 -> C0        7.69      // tied 16th
+4 -> R         8.07      // 16th rest
+4 -> E1        2.898      // 16th
+4 -> E2        19.85   // flam + 16th
+4 -> T2(6, 6)  5.22   // 2 32d
+
+// 32d
+6 -> C0        7.81      // tied 32d
+6 -> R         10.639      // 32d rest
+6 -> E1        4.575      // 32d
+
+

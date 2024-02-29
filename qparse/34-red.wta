@@ -1,0 +1,49 @@
+// penalty model
+// model for 3/4 measure
+
+[penalty]
+[timesig 3 4]
+
+
+// bar level
+0 -> C0          0.15
+0 -> R           0.10  // 
+0 -> E1          0.10  // blanche pointee
+0 -> E2          8.85  // grace-note + blanche pointee
+0 -> E3          14.05 // 2 grace-notes + blanche pointe
+0 -> U2(1, 1)    8.19  // duolet de noires
+0 -> U3(1, 1, 1) 0.25  // 3 noires
+0 -> U3(1:2, 1)  0.25  // 1 blanche, 1 noire
+0 -> U3(1, 1:2)  0.25  // 1 noire, 1 blanche
+
+// beat level
+1 -> C0                      0.1
+1 -> R                       0.10  
+1 -> E1                      0.05
+1 -> E2                      5.55
+1 -> E3                      23.25
+1 -> T2(2, 2)                0.10
+1 -> T3(2, 2, 2)             1.76
+1 -> T5(4, 4, 4, 4, 4)       3.95
+1 -> T7(4, 4, 4, 4, 4, 4, 4) 6.95
+
+// sub-beat = croches
+2 -> C0           0.07
+2 -> R            0.10   
+2 -> E1           0.03
+2 -> E2           9.8
+2 -> E3           12.3
+2 -> T2(3, 3)     0.08
+2 -> T3(3, 3, 3)  0.24
+
+// sub-sub-beat = doubles
+3 -> C0       0.05
+3 -> R        0.10  // 
+3 -> E1       0.02
+3 -> E2       5.8
+3 -> E3       12.3
+3 -> T2(4, 4) 0.01
+
+4 -> C0       0.10
+4 -> R        0.10  // 
+4 -> E1       0.01
