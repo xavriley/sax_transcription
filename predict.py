@@ -19,6 +19,8 @@ from BeatNet.BeatNet import BeatNet
 import partitura as pt
 import pretty_midi as pm
 
+from piano_transcription_inference import PianoTranscription, sample_rate
+import librosa
 
 class Predictor(BasePredictor):
     def download_file_if_url(self, url_str, save_dir="."):
@@ -68,13 +70,13 @@ class Predictor(BasePredictor):
         )
         return
 
-    def run_transcription(self, audio_file, midi_file):
-        safe_audio = shlex.quote(audio_file)
-        safe_midi = shlex.quote(midi_file)
+    # def run_transcription(self, audio_file, midi_file):
+    #     safe_audio = shlex.quote(audio_file)
+    #     safe_midi = shlex.quote(midi_file)
 
-        self.run_command(
-            f"python -m transkun.transcribe --weight filosax_model --device cuda --segmentHopSize 5 --segmentSize 10 {safe_audio} {safe_midi}"
-        )
+    #     self.run_command(
+    #         f"python -m transkun.transcribe --weight filosax_model --device cuda --segmentHopSize 5 --segmentSize 10 {safe_audio} {safe_midi}"
+    #     )
 
     def run_qparse(self, midi_file, beats, beats_per_bar, syncpoints_path):
         if syncpoints_path is None:
@@ -201,6 +203,14 @@ dur: {max(downbeats)}
             print("Command output:", result.stdout.decode())
 
         return
+    
+    
+    def setup(self):
+        self.transcriptor = PianoTranscription("Regress_onset_offset_frame_velocity_CRNN",
+                                                device='cuda',
+                                                checkpoint_path="/src/filosax_25k.pth",
+                                                segment_samples=10 * sample_rate,
+                                                batch_size=8)
 
     def predict(
         self,
@@ -246,15 +256,18 @@ dur: {max(downbeats)}
             separated_audio_path = str(
                 Path(f"./0d7ed4d7/{audio_input.stem}/Sax.wav"))
 
+            load_audio_start = os.times()[4]
+            audio, _ = librosa.core.load(str(separated_audio_path), sr=sample_rate)
+            load_audio_end = os.times()[4]
+
+            print(f"Loaded audio in {load_audio_end - load_audio_start} seconds")
+
             # Transcribe audio
             transcribe_start_time = os.times()[4]
-            self.run_transcription(separated_audio_path,
-                                   midi_intermediate_filename)
+            self.transcriptor.transcribe(audio, midi_intermediate_filename)
             transcribe_end_time = os.times()[4]
 
-            print(
-                f"Transcribed audio in {transcribe_end_time - transcribe_start_time} seconds"
-            )
+            print(f"Transcribed audio in {transcribe_end_time - transcribe_start_time} seconds")
         else:
             midi_intermediate_filename = midi_path.stem + f"__{file_label}.mid"
             shutil.copy(midi_path, midi_intermediate_filename)
