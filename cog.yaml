@@ -13,6 +13,7 @@ build:
     - "openjdk-11-jre"
     - "llvm-14"
     - "libncurses5"
+    - "musescore3"
 
   python_version: "3.8"
 
@@ -39,6 +40,7 @@ build:
      - "demucs==3.0.6"
      - "partitura"
      - "verovio"
+     - "yt-dlp==2023.12.30"
 
   run:
      - "pip install --upgrade --no-deps --force-reinstall matplotlib==3.0.3"
