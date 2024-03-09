@@ -47,4 +47,4 @@ build:
      - "pip install --global-option='build_ext' --global-option='-I/usr/local/include' --global-option='-L/usr/local/lib' pyaudio"
 
 predict: "predict.py:Predictor"
-image: "r8.im/xavriley/sax-to-midi"
+image: "r8.im/xavriley/sax_transcription"

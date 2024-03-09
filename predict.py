@@ -23,6 +23,7 @@ from piano_transcription_inference import PianoTranscription, sample_rate
 import librosa
 
 from yt_dlp import YoutubeDL
+from yt_dlp.utils import download_range_func
 
 
 class Predictor(BasePredictor):
@@ -66,6 +67,112 @@ class Predictor(BasePredictor):
 
         return f"./{filename}"
 
+    def lookup_starts_and_ends(self, label):
+        """
+        Complete hack to allow easier processing of the Charlie Parker dataset
+        """
+
+        if '1p64c' in label:
+            return 6.00236, 75.2907
+        if '2RfYc' in label:
+            return 10.81463, 88.76401
+        if '3RfYc' in label:
+            return 0.456, 81.2037
+        if '3zn4c' in label:
+            return 3.02207, 104.76932
+        if '6Cbwc' in label:
+            return 11.65499, 98.79948
+        if '73bwc' in label:
+            return 4.44721, 99.50971
+        if '7RfYc' in label:
+            return 4.30043, 109.61163
+        if '7XTyc' in label:
+            return 4.08313, 92.66244
+        if '9RfYc' in label:
+            return 13.37522, 105.59327
+        if '9THwc' in label:
+            return 7.27422, 71.51222
+        if 'BRfYc' in label:
+            return 9.25315, 83.71955
+        if 'D3fYc' in label:
+            return 9.72916, 84.21574
+        if 'FRfYc' in label:
+            return 4.37662, 186.1283
+        if 'GRfYc' in label:
+            return 18.79503, 74.40429
+        if 'KRfYc' in label:
+            return 3.52766, 75.45728
+        if 'LRfYc' in label:
+            return 11.58676, 120.33161
+        if 'N3fYc' in label:
+            return 0, 75.24959
+        if 'N8swc' in label:
+            return 5.67034, 78.92349
+        if 'Nqn4c' in label:
+            return 27.67528, 81.57751
+        if 'PRfYc' in label:
+            return 33.97215, 107.78839
+        if 'Pq3yc' in label:
+            return 0.608, 44.13274
+        if 'Q6Ryc' in label:
+            return 5.11633, 115.50753
+        if 'QRfYc' in label:
+            return 5.35853, 64.59844
+        if 'Qrqyc' in label:
+            return 6.06621, 76.1034
+        if 'Rln4c' in label:
+            return 5.648, 82.24483
+        if 'S1swc' in label:
+            return 7.66599, 84.25701
+        if 'S5VYc' in label:
+            return 6.62151, 79.40429
+        if 'SRfYc' in label:
+            return 37.87636, 105.81816
+        if 'V3fYc' in label:
+            return 0.376, 149.33202
+        if 'WG3yc' in label:
+            return 9.16991, 86.64619
+        if 'WRfYc' in label:
+            return 4.37379, 112.3698
+        if 'WS64c' in label:
+            return 4.41179, 89.0137
+        if 'cXbwc' in label:
+            return 0.68499, 102.65542
+        if 'lTXyc' in label:
+            return 0.48, 122.99107
+        if 'mRfYc' in label:
+            return 5.88948, 93.81925
+        if 'mTHyc' in label:
+            return 0.616, 54.18508
+        if 'myn4c' in label:
+            return 7.50515, 113.24952
+        if 'nRfYc' in label:
+            return 4.10889, 79.81444
+        if 'nvJyc' in label:
+            return 0.248, 82.22639
+        if 'rCn4c' in label:
+            return 0.288, 72.74297
+        if 'rRfYc' in label:
+            return 6.572, 68.3719
+        if 't66yc' in label:
+            return 0.096, 64.57782
+        if 'tCfYc' in label:
+            return 25.41491, 128.61154
+        if 'tRfYc' in label:
+            return 10.9366, 88.65633
+        if 'vRfYc' in label:
+            return 4.33052, 74.65122
+        if 'wkTyc' in label:
+            return 0, 76.61406
+        if 'wv3wc' in label:
+            return 7.38975, 119.66404
+        if 'xRfYc' in label:
+            return 0.28, 74.64732
+        if 'yp3wc' in label:
+            return 5.64245, 120.1981
+        
+        return None
+
     def run_separation(self, filename):
         safe_filename = shlex.quote(filename)
         self.run_command(
@@ -85,6 +192,63 @@ class Predictor(BasePredictor):
         syncpoints = json.load(syncpoints_path.open())
         downbeats = [0] + [s[1] for s in syncpoints if len(s) == 2 or s[2] == 0]
         return downbeats
+
+    def _remove_overlapping_notes(self, midi):
+        # enforce mono, no overlaps
+        for instrument in midi.instruments:
+            instrument.notes.sort(key=lambda x: x.start)
+
+            for idx, note in enumerate(instrument.notes):
+                for test_note in instrument.notes[idx:]:
+                    if test_note.start == note.start and test_note != note:
+                        test_note.start = test_note.start + 0.01
+
+                if test_note.start > note.start and test_note.start < note.end:
+                    note.end = test_note.start - 0.001
+
+            # remove notes that are too short
+            instrument.notes = [note for note in instrument.notes if note.end - note.start > 0.02]
+        
+        return midi
+
+    def _quantize_to_grid(self, midi):
+        def beat_divisions(boundaries):
+            triplets = np.linspace(*boundaries, 4)
+            sixteenths = np.linspace(*boundaries, 5)
+            # Exclude the end, as that is the first division of the next beat
+            # Also exclude the first sixteenth since it is the same as the first triplet
+            divisions = np.concatenate((triplets[:-1], sixteenths[1:-1]))
+            divisions.sort()
+            return divisions
+
+        beats = midi.get_beats()
+        beat_boundaries = list(zip(beats[:-1], beats[1:]))
+
+        # add the final beat to the gridpoints
+        gridpoints = np.concatenate(list(map(beat_divisions, beat_boundaries)) + [[beats[-1]]])
+
+        def quantize_to_grid(t, grid=gridpoints):
+          for idx, p in enumerate(grid):
+            if p >= t:
+              break
+          if idx - 1 >= 0 and t - grid[idx - 1] < grid[idx] - t:
+            return grid[idx - 1]
+          else:
+            return grid[idx]
+
+        for inst in midi.instruments:
+            for note in inst.notes:
+                start_q = quantize_to_grid(note.start)
+                end_q = quantize_to_grid(note.end)
+                note.start = start_q
+
+                if end_q > start_q:
+                    note.end = end_q
+                else:
+                    note.end = start_q + 0.01
+
+
+        return midi
 
     def preprocess_midi(self, midi_path, downbeats, beats_per_bar = 4):
         mid = pm.PrettyMIDI(str(midi_path))
@@ -127,17 +291,14 @@ class Predictor(BasePredictor):
             out_mid.time_signature_changes.append(pm.TimeSignature(
                 beats_per_bar, 4, time))
 
-        # remove overlapping notes
-        for instrument in mid.instruments:
-            for idx, note in enumerate(instrument.notes):
-                for test_note in instrument.notes[idx:]:
-                    if test_note.start > note.start and test_note.start < note.end:
-                        note.end = test_note.start - 0.001
+        out_mid = self._remove_overlapping_notes(out_mid)
+        out_mid = self._quantize_to_grid(out_mid)
+        out_mid = self._remove_overlapping_notes(out_mid)
 
         # write out the new midi file
         out_mid.write(midi_path)
 
-    def download_audio_as_wav(self, youtube_url):
+    def download_audio_as_wav(self, youtube_url, start_time=0, finish_time=0):
         # Define the yt-dlp options
         ydl_opts = {
             'format': 'bestaudio/best',
@@ -148,6 +309,10 @@ class Predictor(BasePredictor):
             }],
             'outtmpl': "tmp_audio",  # Set the output filename
         }
+
+        if start_time > 0 or finish_time > 0:
+            ydl_opts['download_ranges'] = download_range_func(None, [(start_time, finish_time)])
+            ydl_opts['force_keyframes_at_cuts'] =  True
 
         # Use yt-dlp to download the audio
         with YoutubeDL(ydl_opts) as ydl:
@@ -183,6 +348,16 @@ class Predictor(BasePredictor):
                       np.mean(np.diff(np.array(downbeats) / beats_per_bar))))
             print(f"Tempo calculated as {tempo} bpm")
 
+        # LD_LIBRARY_PATH="/src:$LD_LIBRARY_PATH" ./monoparse ...
+        cp_start_end = self.lookup_starts_and_ends(midi_file)
+        if cp_start_end:
+            start, finish = cp_start_end
+            downbeats = [d for d in downbeats if d > start and d < finish]
+        else:
+            start = np.round(downbeats[0] - 0.1, 3)
+            finish = np.round(downbeats[-1] + 0.1, 3)
+      
+
         beat_output_path = Path(midi_file).with_suffix(".txt")
         np.savetxt(str(beat_output_path.resolve()),
                    downbeats,
@@ -197,8 +372,13 @@ dur: {max(downbeats)}
 
 """)
         # LD_LIBRARY_PATH="/src:$LD_LIBRARY_PATH" ./monoparse ...
-        start = np.round(downbeats[0] - 0.1, 3)
-        finish = np.round(downbeats[-1] + 0.1, 3)
+        cp_start_end = self.lookup_starts_and_ends(midi_file)
+        if cp_start_end:
+            start, finish = cp_start_end
+        else:
+            start = np.round(downbeats[0] - 0.1, 3)
+            finish = np.round(downbeats[-1] + 0.1, 3)
+        
         clef = 'G2'  # or F4 for bass
 
         tmp_mid = pm.PrettyMIDI(midi_file)
@@ -211,6 +391,16 @@ dur: {max(downbeats)}
         
         os.remove(midi_file)
         tmp_mid.write(midi_file)
+
+        # add downbeats to midi and preprocess
+        # grab the downbeats again to ensure consistent format
+        downbeats = self.get_downbeats_from_syncpoints(syncpoints_json_path)
+
+        # copy midi file to save original
+        raw_midi_file = Path(midi_file).with_suffix(".raw.mid")
+        shutil.copy(midi_file, raw_midi_file)
+
+        self.preprocess_midi(midi_file, downbeats, beats_per_bar)
 
         mei_output_path = Path(midi_file).with_suffix(".mei")
 
@@ -234,13 +424,6 @@ dur: {max(downbeats)}
         if qparse_res != 0:
             print("Error running qparse")
             exit()
-            
-            # add downbeats to midi and preprocess
-
-            # grab the downbeats again to ensure consistent format
-            downbeats = self.get_downbeats_from_syncpoints(syncpoints_json_path)
-
-            self.preprocess_midi(midi_file, downbeats, beats_per_bar)
 
             # use musescore to convert to musicxml directly
             score_output_path = Path(midi_file).with_suffix(".xml")
@@ -328,6 +511,8 @@ dur: {max(downbeats)}
             description=
             "Option path to midi file - skips audio and runs score layout only",
             default=None),
+        start_time: float = Input(description="Start time for audio", default=0),
+        finish_time: float = Input(description="Finish time for audio", default=0),
         skip_separation: bool = Input(description="Skip separation step", default=False),
         file_label: str = Input(description="Optional label for output filename", default=None),
         yt_url: str = Input(description="Optional YouTube URL to fetch audio from - replaces audio_input", default=None),
@@ -343,7 +528,7 @@ dur: {max(downbeats)}
             if os.path.exists(audio_input):
                 os.remove(audio_input)
 
-            self.download_audio_as_wav(yt_url)
+            self.download_audio_as_wav(yt_url, start_time, finish_time)
 
         if midi_path is None:
             midi_intermediate_filename = f"{audio_input.stem}__{file_label}.mid"
