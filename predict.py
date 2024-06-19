@@ -422,8 +422,7 @@ dur: {max(downbeats)}
         qparse_res = self.run_command(cmd, False)
 
         if qparse_res != 0:
-            print("Error running qparse")
-            exit()
+            print("Error running qparse - Falling back to MuseScore for score layout")
 
             # use musescore to convert to musicxml directly
             score_output_path = Path(midi_file).with_suffix(".xml")
