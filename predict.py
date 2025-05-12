@@ -448,11 +448,13 @@ dur: {max(downbeats)}
         score_output_path = Path(midi_file).with_suffix(".xml")
         
         # This method is straightforward but doesn't support nested tuplets
+        # it also preserves the correct accidentals
         score = pt.load_score(str(mei_output_path.resolve()))
         pt.save_musicxml(score, str(score_output_path.resolve()))
 
-        # # This method has maximum compatibility but requires a Java runtime
-        # # step 1: convert MEI to partwise MusicXML
+        # This method has maximum compatibility but requires a Java runtime
+        # but it gets accidentals wrong for some reason
+        # step 1: convert MEI to partwise MusicXML
         # cmd = ['/usr/bin/java', '-jar', 'meicoApp.jar', '-x', 'mei2musicxml.xsl', "timewise.xml", mei_output_path]
         # print(f"running command: {cmd}")
         # self.run_command(cmd, False)
@@ -500,7 +502,7 @@ dur: {max(downbeats)}
         audio_input: Path = Input(description="Piano audio to transcribe",
                                   default=None),
         beats_per_bar: int = Input(
-            description="numerator for time signature, default: 4", default=4),
+            description="numerator for time signature, default: 4", default=0),
         model_path: str = Input(
             description="Optional URL to specify different model weights",
             default="./model.pth"),
@@ -581,7 +583,8 @@ dur: {max(downbeats)}
             activations = in_processor(str(audio_input))
             
             beats = processor(activations)
-            beats_per_bar = max([int(t) for d,t in beats])
+            if beats_per_bar == 0:
+                beats_per_bar = max([int(t) for d,t in beats])
             
             db_times = [d for d,t in beats if int(t) == 1]
 
@@ -609,7 +612,10 @@ dur: {max(downbeats)}
         syncpoints_json_path, score_path = self.run_qparse(
             midi_intermediate_filename, beats, beats_per_bar, syncpoints_path)
 
+        separated_audio_mp3 = separated_audio_path.replace(".wav", ".mp3")
+        os.system(f"ffmpeg -i {separated_audio_path} {separated_audio_mp3}")
+
         # to return a list see https://github.com/replicate/cog/blob/main/docs/python.md#returning-a-list
         return [
-            Path(midi_intermediate_filename), score_path, syncpoints_json_path
+            Path(midi_intermediate_filename), score_path, syncpoints_json_path, Path(separated_audio_mp3)
         ]
